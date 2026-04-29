@@ -62,3 +62,13 @@ li {
   flex: 1;
   margin: 0 3px;
 }
+
+input {
+  padding: 8px;
+}
+
+.input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
