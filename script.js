@@ -28,7 +28,7 @@ function renderTasks() {
     const li = document.createElement("li");
 
     const span = document.createElement("span");
-    span.textContent = task.text;
+    span.textContent = `${task.text} - ${task.date} ${task.time}`;
 
     if (task.completed) {
       span.classList.add("completed");
@@ -56,16 +56,43 @@ function renderTasks() {
 }
 
 function addTask() {
-  const taskText = taskInput.value.trim();
+  const text = taskInput.value.trim();
+  const date = document.getElementById("taskDate").value;
+  const time = document.getElementById("taskTime").value;
 
-  if (taskText === "") return;
+  if (!text || !date || !time) return;
 
-  tasks.push({ text: taskText, completed: false });
+  tasks.push({
+    text,
+    date,
+    time,
+    completed: false
+  });
 
   saveTasks();
   renderTasks();
 
   taskInput.value = "";
 }
+
+function checkReminders() {
+  const now = new Date();
+
+  tasks.forEach(task => {
+    if (!task.completed && !task.notified) {
+      const taskDateTime = new Date(`${task.date}T${task.time}`);
+      const diff = taskDateTime - now;
+
+      // 1 hour = 3600000 ms
+      if (diff > 0 && diff <= 3600000) {
+        alert(`Reminder: "${task.text}" is due within 1 hour!`);
+        task.notified = true; // prevent repeating alerts
+        saveTasks();
+      }
+    }
+  });
+}
+
+setInterval(checkReminders, 30000); // every 30 seconds
 
 renderTasks();
