@@ -51,3 +51,14 @@ li {
   text-decoration: line-through;
   color: gray;
 }
+
+.filters {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.filters button {
+  flex: 1;
+  margin: 0 3px;
+}
