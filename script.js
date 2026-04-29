@@ -2,15 +2,29 @@ const taskInput = document.getElementById("taskInput");
 const taskList = document.getElementById("taskList");
 
 let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+let currentFilter = "all";
 
 function saveTasks() {
   localStorage.setItem("tasks", JSON.stringify(tasks));
 }
 
+function setFilter(filter) {
+  currentFilter = filter;
+  renderTasks();
+}
+
 function renderTasks() {
   taskList.innerHTML = "";
 
-  tasks.forEach((task, index) => {
+  let filteredTasks = tasks;
+
+  if (currentFilter === "active") {
+    filteredTasks = tasks.filter(task => !task.completed);
+  } else if (currentFilter === "completed") {
+    filteredTasks = tasks.filter(task => task.completed);
+  }
+
+  filteredTasks.forEach((task, index) => {
     const li = document.createElement("li");
 
     const span = document.createElement("span");
@@ -21,7 +35,7 @@ function renderTasks() {
     }
 
     span.onclick = () => {
-      tasks[index].completed = !tasks[index].completed;
+      task.completed = !task.completed;
       saveTasks();
       renderTasks();
     };
