@@ -28,7 +28,7 @@ function renderTasks() {
     const li = document.createElement("li");
 
     const span = document.createElement("span");
-    span.textContent = `${task.text} - ${task.date} ${task.time}`;
+    span.textContent = `${task.text} ${task.date ? "- 📅 " + task.date : ""} ${task.time ? "⏰ " + task.time : ""}`;
 
     if (task.completed) {
       span.classList.add("completed");
@@ -66,13 +66,32 @@ function addTask() {
     text,
     date,
     time,
-    completed: false
+    completed: false,
+    notified: false
   });
 
   saveTasks();
   renderTasks();
 
   taskInput.value = "";
+}
+
+//
+// 🔊 BEEP SOUND FUNCTION (no file needed)
+//
+function playBeep() {
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const oscillator = audioCtx.createOscillator();
+
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(1000, audioCtx.currentTime);
+
+  oscillator.connect(audioCtx.destination);
+  oscillator.start();
+
+  setTimeout(() => {
+    oscillator.stop();
+  }, 300);
 }
 
 function checkReminders() {
@@ -83,16 +102,19 @@ function checkReminders() {
       const taskDateTime = new Date(`${task.date}T${task.time}`);
       const diff = taskDateTime - now;
 
-      // 1 hour = 3600000 ms
+      // 1 hour before
       if (diff > 0 && diff <= 3600000) {
         alert(`Reminder: "${task.text}" is due within 1 hour!`);
-        task.notified = true; // prevent repeating alerts
+
+        playBeep(); // 🔊 SOUND ADDED HERE
+
+        task.notified = true;
         saveTasks();
       }
     }
   });
 }
 
-setInterval(checkReminders, 30000); // every 30 seconds
+setInterval(checkReminders, 30000);
 
 renderTasks();
