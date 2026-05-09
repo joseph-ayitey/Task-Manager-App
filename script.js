@@ -182,21 +182,25 @@ function showNotification(title, message) {
 }
 
 //
-// ⏰ REMINDER SYSTEM (FIXED + NO SPAM)
+// 🚀 CHECK REMINDERS (clean + safe version)
 //
 function checkReminders() {
   const now = Date.now();
 
-  tasks.forEach(task => {
-    if (task.completed) return;
-
-    const dt = getTaskDateTime(task);
-    if (!dt) return;
-
-    const diff = dt.getTime() - now;
+  tasks.forEach((task) => {
+    const diff = task.time - now;
 
     //
-    // ⏳ UPCOMING (1 min → 60 min)
+    // 🔄 Reset flags if task time was changed
+    //
+    if (task.lastCheckedTime !== task.time) {
+      task.notified = false;
+      task.dueAlertPlayed = false;
+      task.lastCheckedTime = task.time;
+    }
+
+    //
+    // ⏳ UPCOMING (1 hour → 1 minute before)
     //
     if (
       diff > 0 &&
@@ -205,7 +209,7 @@ function checkReminders() {
     ) {
       showNotification(
         "⏰ Upcoming Task",
-        `${task.text} is coming soon`
+        `${task.text} is coming in ${Math.ceil(diff / 60000)} min`
       );
 
       playBeep();
@@ -214,13 +218,9 @@ function checkReminders() {
     }
 
     //
-    // 🚨 DUE NOW (prevents infinite triggers)
+    // 🚨 DUE NOW (no fragile time window)
     //
-    if (
-      diff <= 0 &&
-      diff > -30000 &&
-      !task.dueAlertPlayed
-    ) {
+    if (diff <= 0 && !task.dueAlertPlayed) {
       showNotification(
         "🚨 Task Due",
         `${task.text} is due now`
@@ -238,5 +238,7 @@ function checkReminders() {
 //
 window.addEventListener("DOMContentLoaded", () => {
   renderTasks();
+
+  // still fine for UI updates, but logic is now safe
   setInterval(checkReminders, 1000);
 });
