@@ -36,6 +36,13 @@ function renderTasks() {
 
     span.onclick = () => {
       task.completed = !task.completed;
+
+      if (task.completed) {
+        currentFilter = "completed";
+      } else {
+        currentFilter = "active";
+      }
+      
       saveTasks();
       renderTasks();
     };
@@ -97,6 +104,21 @@ function playBeep() {
   }, 300);
 }
 
+//
+// 🔔 SHOW NOTIFICATION
+//
+function showNotification(title, message) {
+
+  if (Notification.permission === "granted") {
+
+    new Notification(title, {
+      body: message,
+      icon: "https://cdn-icons-png.flaticon.com/512/1827/1827392.png"
+    });
+
+  }
+}
+
 function checkReminders() {
   const now = new Date();
 
@@ -112,8 +134,10 @@ function checkReminders() {
 
         const minutesLeft = Math.ceil(diff / 60000);
 
-        alert(`Reminder: "${task.text}" is due in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}!`);
-
+        showNotification(
+  "⏰ Upcoming Task",
+  `"${task.text}" is due in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}!`
+);
         playBeep();
 
         task.notified = true;
@@ -123,8 +147,10 @@ function checkReminders() {
       // ⏰ Exact due time
       if (diff <= 0 && !task.dueAlertPlayed) {
 
-        alert(`"${task.text}" is due NOW!`);
-
+       showNotification(
+  "🚨 Task Due",
+  `"${task.text}" is due NOW!`
+);
         playBeep();
 
         task.dueAlertPlayed = true;
@@ -134,6 +160,6 @@ function checkReminders() {
   });
 }
 
-setInterval(checkReminders, 30000);
+setInterval(checkReminders, 1000);
 
 renderTasks();
