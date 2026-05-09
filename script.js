@@ -36,6 +36,13 @@ function renderTasks() {
 
     span.onclick = () => {
       task.completed = !task.completed;
+
+      if (task.completed) {
+        currentFilter = "completed";
+      } else {
+        currentFilter = "active";
+      }
+      
       saveTasks();
       renderTasks();
     };
