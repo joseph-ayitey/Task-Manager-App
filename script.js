@@ -24,7 +24,7 @@ function renderTasks() {
     filteredTasks = tasks.filter(task => task.completed);
   }
 
-  filteredTasks.forEach((task, index) => {
+  filteredTasks.forEach((task) => {
     const li = document.createElement("li");
 
     const span = document.createElement("span");
@@ -44,10 +44,13 @@ function renderTasks() {
     deleteBtn.textContent = "X";
 
     deleteBtn.onclick = () => {
-      tasks.splice(index, 1);
-      saveTasks();
-      renderTasks();
-    };
+  const realIndex = tasks.indexOf(task);
+
+  tasks.splice(realIndex, 1);
+
+  saveTasks();
+  renderTasks();
+};
 
     li.appendChild(span);
     li.appendChild(deleteBtn);
