@@ -1,74 +1,155 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 body {
   font-family: Arial, sans-serif;
   background-color: #f4f4f4;
+
   display: flex;
   justify-content: center;
-  align-items: center;
-  height: 100vh;
+  align-items: flex-start;
+
+  min-height: 100vh;
+  padding: 20px;
 }
 
+/* MAIN CONTAINER */
 .container {
   background: white;
+
+  width: 100%;
+  max-width: 500px;
+
   padding: 20px;
-  border-radius: 10px;
-  width: 350px;
+  border-radius: 15px;
+
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
+/* TITLE */
 h1 {
   text-align: center;
+  margin-bottom: 20px;
 }
 
+/* INPUT SECTION */
 .input-section {
   display: flex;
+  flex-direction: column;
   gap: 10px;
 }
 
+/* INPUTS */
 input {
-  flex: 1;
-  padding: 10px;
+  width: 100%;
+  padding: 12px;
+
+  border: 1px solid #ccc;
+  border-radius: 8px;
+
+  font-size: 16px;
 }
 
+/* BUTTONS */
 button {
-  padding: 10px;
+  padding: 12px;
+
+  border: none;
+  border-radius: 8px;
+
+  background-color: #007bff;
+  color: white;
+
   cursor: pointer;
+  font-size: 16px;
+
+  transition: 0.2s;
 }
 
+button:hover {
+  opacity: 0.9;
+}
+
+/* FILTER BUTTONS */
+.filters {
+  display: flex;
+  gap: 8px;
+
+  margin-top: 15px;
+}
+
+.filters button {
+  flex: 1;
+}
+
+/* TASK LIST */
 ul {
   list-style: none;
-  padding: 0;
   margin-top: 20px;
 }
 
+/* TASK ITEM */
 li {
   display: flex;
   justify-content: space-between;
-  padding: 10px;
-  border-bottom: 1px solid #ddd;
+  align-items: center;
+
+  gap: 10px;
+
+  padding: 12px;
+  margin-bottom: 10px;
+
+  background: #f9f9f9;
+  border-radius: 10px;
+
+  word-break: break-word;
 }
 
+/* TASK TEXT */
+li span {
+  flex: 1;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+/* COMPLETED TASK */
 .completed {
   text-decoration: line-through;
   color: gray;
 }
 
-.filters {
-  margin-top: 15px;
-  display: flex;
-  justify-content: space-between;
+/* DELETE BUTTON */
+li button {
+  background-color: red;
+  width: 40px;
+  flex-shrink: 0;
 }
 
-.filters button {
-  flex: 1;
-  margin: 0 3px;
-}
+/* MOBILE */
+@media (max-width: 480px) {
 
-input {
-  padding: 8px;
-}
+  body {
+    padding: 10px;
+  }
 
-.input-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  .container {
+    padding: 15px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  button,
+  input {
+    font-size: 15px;
+  }
+
+  li {
+    flex-direction: row;
+    align-items: flex-start;
+  }
 }
