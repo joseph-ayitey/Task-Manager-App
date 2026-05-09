@@ -5,8 +5,7 @@ let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
 let currentFilter = "all";
 
 //
-// 🆔 FIX OLD DATA (IMPORTANT)
-// convert old tasks into proper timestamps
+// 🆔 FIX OLD DATA ON LOAD
 //
 tasks = tasks.map(t => {
   const timestamp =
@@ -23,22 +22,100 @@ tasks = tasks.map(t => {
 });
 
 //
-// 💾 SAVE
+// 💾 SAVE TASKS
 //
 function saveTasks() {
   localStorage.setItem("tasks", JSON.stringify(tasks));
 }
 
 //
-// 🔍 FILTER
+// 🔔 NOTIFICATION SYSTEM (FIXED)
 //
-function setFilter(filter) {
-  currentFilter = filter;
-  renderTasks();
+let notificationEnabled = false;
+
+async function initNotifications() {
+  if (!("Notification" in window)) return;
+
+  let permission = Notification.permission;
+
+  if (permission === "default") {
+    permission = await Notification.requestPermission();
+  }
+
+  notificationEnabled = permission === "granted";
+}
+
+function showNotification(title, message) {
+  if (!notificationEnabled) return;
+
+  try {
+    new Notification(title, {
+      body: message
+    });
+  } catch (err) {
+    console.log("Notification error:", err);
+  }
 }
 
 //
-// 🖥️ RENDER
+// 🔊 BEEP SOUND
+//
+let audioCtx;
+
+function playBeep() {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+
+    const osc = audioCtx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 1000;
+
+    osc.connect(audioCtx.destination);
+    osc.start();
+
+    setTimeout(() => osc.stop(), 300);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+//
+// ➕ ADD TASK (FIXED)
+//
+function addTask() {
+  const text = taskInput.value.trim();
+  const date = document.getElementById("taskDate").value;
+  const time = document.getElementById("taskTime").value;
+
+  if (!text || !date || !time) return;
+
+  const timestamp = new Date(`${date}T${time}:00`).getTime();
+
+  tasks.push({
+    id: crypto.randomUUID(),
+    text,
+    date,
+    time,
+    timestamp,
+    completed: false,
+    notified: false,
+    dueAlertPlayed: false
+  });
+
+  saveTasks();
+  renderTasks();
+
+  taskInput.value = "";
+}
+
+//
+// 🖥️ RENDER TASKS
 //
 function renderTasks() {
   taskList.innerHTML = "";
@@ -78,7 +155,7 @@ function renderTasks() {
     };
 
     //
-    // ❌ DELETE
+    // ❌ DELETE TASK
     //
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "X";
@@ -96,77 +173,7 @@ function renderTasks() {
 }
 
 //
-// ➕ ADD TASK (FIXED)
-// IMPORTANT: create timestamp here
-//
-function addTask() {
-  const text = taskInput.value.trim();
-  const date = document.getElementById("taskDate").value;
-  const time = document.getElementById("taskTime").value;
-
-  if (!text || !date || !time) return;
-
-  const timestamp = new Date(`${date}T${time}:00`).getTime();
-
-  tasks.push({
-    id: crypto.randomUUID(),
-    text,
-    date,
-    time,
-    timestamp, // ✅ KEY FIX
-    completed: false,
-    notified: false,
-    dueAlertPlayed: false
-  });
-
-  saveTasks();
-  renderTasks();
-
-  taskInput.value = "";
-}
-
-//
-// 🔊 SOUND
-//
-let audioCtx;
-
-function playBeep() {
-  try {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    if (audioCtx.state === "suspended") {
-      audioCtx.resume();
-    }
-
-    const osc = audioCtx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = 1000;
-
-    osc.connect(audioCtx.destination);
-    osc.start();
-
-    setTimeout(() => osc.stop(), 300);
-  } catch (err) {
-    console.log(err);
-  }
-}
-
-//
-// 🔔 NOTIFICATION
-//
-function showNotification(title, message) {
-  if (!("Notification" in window)) return;
-  if (Notification.permission !== "granted") return;
-
-  new Notification(title, {
-    body: message
-  });
-}
-
-//
-// 🚨 MAIN REMINDER LOGIC (FIXED)
+// 🚨 REMINDERS (FIXED CORE LOGIC)
 //
 function checkReminders() {
   const now = Date.now();
@@ -177,13 +184,15 @@ function checkReminders() {
     const diff = task.timestamp - now;
 
     //
-    // ⏳ UPCOMING (1 hour before)
+    // ⏰ UPCOMING (1 hour before)
     //
     if (
       diff > 0 &&
       diff <= 60 * 60 * 1000 &&
       !task.notified
     ) {
+      console.log("UPCOMING:", task.text);
+
       showNotification(
         "⏰ Upcoming Task",
         `${task.text} in ${Math.ceil(diff / 60000)} min`
@@ -198,6 +207,8 @@ function checkReminders() {
     // 🚨 DUE NOW
     //
     if (diff <= 0 && !task.dueAlertPlayed) {
+      console.log("DUE:", task.text);
+
       showNotification(
         "🚨 Task Due",
         task.text
@@ -215,5 +226,8 @@ function checkReminders() {
 //
 window.addEventListener("DOMContentLoaded", () => {
   renderTasks();
+
   setInterval(checkReminders, 1000);
+
+  initNotifications(); // IMPORTANT FIX
 });
