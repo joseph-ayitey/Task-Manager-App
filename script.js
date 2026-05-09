@@ -2,7 +2,6 @@ const taskInput = document.getElementById("taskInput");
 const taskList = document.getElementById("taskList");
 
 let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-
 let currentFilter = "all";
 
 //
@@ -11,43 +10,41 @@ let currentFilter = "all";
 let notificationEnabled = false;
 
 if ("Notification" in window) {
-
   if (Notification.permission === "granted") {
     notificationEnabled = true;
-  }
-
-  else if (Notification.permission !== "denied") {
-
+  } else if (Notification.permission !== "denied") {
     Notification.requestPermission().then(permission => {
       notificationEnabled = permission === "granted";
     });
   }
 }
 
-function getTaskDateTime(task) {
-
-  if (!task.date || !task.time) return null;
-
-  const dateTimeString = `${task.date}T${task.time}:00`;
-  const date = new Date(dateTimeString);
-
-  if (isNaN(date.getTime())) {
-    console.warn("❌ Invalid date:", dateTimeString);
-    return null;
-  }
-
-  return date;
-}
-
 //
-// 💾 SAVE TASKS
+// 🆔 ENSURE ALL TASKS HAVE IDs (important fix for old data)
 //
+tasks.forEach(t => {
+  if (!t.id) t.id = crypto.randomUUID();
+});
+
 function saveTasks() {
   localStorage.setItem("tasks", JSON.stringify(tasks));
 }
 
 //
-// 🔍 FILTER TASKS
+// ⏱️ DATE/TIME PARSER
+//
+function getTaskDateTime(task) {
+  if (!task.date || !task.time) return null;
+
+  const dateTime = new Date(`${task.date}T${task.time}:00`);
+
+  if (isNaN(dateTime.getTime())) return null;
+
+  return dateTime;
+}
+
+//
+// 🔍 FILTER
 //
 function setFilter(filter) {
   currentFilter = filter;
@@ -55,54 +52,56 @@ function setFilter(filter) {
 }
 
 //
-// 🖥️ RENDER TASKS
+// 🖥️ RENDER
 //
 function renderTasks() {
-
   taskList.innerHTML = "";
 
   let filteredTasks = tasks;
 
   if (currentFilter === "active") {
-    filteredTasks = tasks.filter(task => !task.completed);
+    filteredTasks = tasks.filter(t => !t.completed);
+  } else if (currentFilter === "completed") {
+    filteredTasks = tasks.filter(t => t.completed);
   }
 
-  else if (currentFilter === "completed") {
-    filteredTasks = tasks.filter(task => task.completed);
-  }
-
-  filteredTasks.forEach((task) => {
-
+  filteredTasks.forEach(task => {
     const li = document.createElement("li");
     const span = document.createElement("span");
 
     span.textContent =
-      `${task.text}` +
-      (task.date ? " - 📅 " + task.date : "") +
-      (task.time ? " ⏰ " + task.time : "");
+      task.text +
+      (task.date ? ` - 📅 ${task.date}` : "") +
+      (task.time ? ` ⏰ ${task.time}` : "");
 
     if (task.completed) {
       span.classList.add("completed");
     }
 
     //
-    // TOGGLE COMPLETE (FIXED)
+    // ✔ TOGGLE COMPLETE (UPDATED: auto move handling is natural via filter)
     //
     span.onclick = () => {
       task.completed = !task.completed;
+
+      // reset reminders if reopened
+      if (!task.completed) {
+        task.notified = false;
+        task.dueAlertPlayed = false;
+      }
+
       saveTasks();
       renderTasks();
     };
 
     //
-    // DELETE TASK
+    // ❌ DELETE TASK (FIXED)
     //
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "X";
 
     deleteBtn.onclick = () => {
-      const realIndex = tasks.indexOf(task);
-      tasks.splice(realIndex, 1);
+      tasks = tasks.filter(t => t.id !== task.id);
       saveTasks();
       renderTasks();
     };
@@ -117,7 +116,6 @@ function renderTasks() {
 // ➕ ADD TASK
 //
 function addTask() {
-
   const text = taskInput.value.trim();
   const date = document.getElementById("taskDate").value;
   const time = document.getElementById("taskTime").value;
@@ -125,6 +123,7 @@ function addTask() {
   if (!text || !date || !time) return;
 
   tasks.push({
+    id: crypto.randomUUID(),
     text,
     date,
     time,
@@ -140,25 +139,31 @@ function addTask() {
 }
 
 //
-// 🔊 BEEP SOUND
+// 🔊 BEEP SOUND (FIXED AUDIO CONTEXT)
 //
+let audioCtx;
+
 function playBeep() {
-
   try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
 
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
 
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(1000, audioCtx.currentTime);
+    const osc = audioCtx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 1000;
 
-    oscillator.connect(audioCtx.destination);
-    oscillator.start();
+    osc.connect(audioCtx.destination);
+    osc.start();
 
-    setTimeout(() => oscillator.stop(), 300);
+    setTimeout(() => osc.stop(), 300);
 
   } catch (err) {
-    console.log("Audio blocked until user interaction.");
+    console.log("Audio error:", err);
   }
 }
 
@@ -166,91 +171,71 @@ function playBeep() {
 // 🔔 NOTIFICATION
 //
 function showNotification(title, message) {
-
-  if (!("Notification" in window)) {
-    console.warn("Notifications not supported");
-    return;
-  }
-
-  if (Notification.permission !== "granted") {
-    console.warn("Notifications not granted");
-    return;
-  }
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
 
   try {
-    new Notification(title, {
-      body: message
-    });
-  } catch (e) {
-    console.error("Notification failed:", e);
+    new Notification(title, { body: message });
+  } catch (err) {
+    console.error(err);
   }
 }
 
 //
-// ⏰ REMINDER CHECKER
+// ⏰ REMINDER SYSTEM (FIXED + NO SPAM)
 //
 function checkReminders() {
-
-  const now = new Date();
+  const now = Date.now();
 
   tasks.forEach(task => {
-
     if (task.completed) return;
 
-    const taskDateTime = getTaskDateTime(task);
-    if (!taskDateTime) return;
+    const dt = getTaskDateTime(task);
+    if (!dt) return;
 
-    const diff = taskDateTime - now;
-    const minutesLeft = Math.floor(diff / 60000);
-
-    console.log("Checking:", task.text, "minutesLeft:", minutesLeft);
+    const diff = dt.getTime() - now;
 
     //
-    // ⏰ UPCOMING (1–60 min)
+    // ⏳ UPCOMING (1 min → 60 min)
     //
     if (
-      minutesLeft > 0 &&
-      minutesLeft <= 60 &&
+      diff > 0 &&
+      diff <= 60 * 60 * 1000 &&
       !task.notified
     ) {
-
-      console.log("🔔 Upcoming alert triggered");
-
       showNotification(
         "⏰ Upcoming Task",
-        `"${task.text}" in ${minutesLeft} min`
+        `${task.text} is coming soon`
       );
 
       playBeep();
-
       task.notified = true;
       saveTasks();
     }
 
     //
-    // 🚨 DUE NOW
+    // 🚨 DUE NOW (prevents infinite triggers)
     //
     if (
       diff <= 0 &&
+      diff > -30000 &&
       !task.dueAlertPlayed
     ) {
-
-      console.log("🚨 Due alert triggered");
-
       showNotification(
         "🚨 Task Due",
-        `"${task.text}" is due NOW`
+        `${task.text} is due now`
       );
 
       playBeep();
-
       task.dueAlertPlayed = true;
       saveTasks();
     }
-
   });
 }
 
+//
+// 🚀 INIT
+//
 window.addEventListener("DOMContentLoaded", () => {
   renderTasks();
   setInterval(checkReminders, 1000);
