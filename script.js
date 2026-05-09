@@ -24,6 +24,21 @@ if ("Notification" in window) {
   }
 }
 
+function getTaskDateTime(task) {
+
+  if (!task.date || !task.time) return null;
+
+  const dateTimeString = `${task.date}T${task.time}:00`;
+  const date = new Date(dateTimeString);
+
+  if (isNaN(date.getTime())) {
+    console.warn("❌ Invalid date:", dateTimeString);
+    return null;
+  }
+
+  return date;
+}
+
 //
 // 💾 SAVE TASKS
 //
@@ -152,15 +167,22 @@ function playBeep() {
 //
 function showNotification(title, message) {
 
-  if (!notificationEnabled) return;
+  if (!("Notification" in window)) {
+    console.warn("Notifications not supported");
+    return;
+  }
+
+  if (Notification.permission !== "granted") {
+    console.warn("Notifications not granted");
+    return;
+  }
 
   try {
     new Notification(title, {
-      body: message,
-      icon: "https://cdn-icons-png.flaticon.com/512/1827/1827392.png"
+      body: message
     });
   } catch (e) {
-    console.log("Notification error:", e);
+    console.error("Notification failed:", e);
   }
 }
 
@@ -175,15 +197,16 @@ function checkReminders() {
 
     if (task.completed) return;
 
-    const taskDateTime = new Date(`${task.date}T${task.time}:00`);
+    const taskDateTime = getTaskDateTime(task);
+    if (!taskDateTime) return;
 
-    if (!(taskDateTime instanceof Date) || isNaN(taskDateTime.getTime())) return;
-
-    const diff = taskDateTime.getTime() - now.getTime();
+    const diff = taskDateTime - now;
     const minutesLeft = Math.floor(diff / 60000);
 
+    console.log("Checking:", task.text, "minutesLeft:", minutesLeft);
+
     //
-    // 🔔 UPCOMING (1–60 min)
+    // ⏰ UPCOMING (1–60 min)
     //
     if (
       minutesLeft > 0 &&
@@ -191,9 +214,11 @@ function checkReminders() {
       !task.notified
     ) {
 
+      console.log("🔔 Upcoming alert triggered");
+
       showNotification(
         "⏰ Upcoming Task",
-        `"${task.text}" is due in ${minutesLeft} minute${minutesLeft !== 1 ? "s" : ""}!`
+        `"${task.text}" in ${minutesLeft} min`
       );
 
       playBeep();
@@ -210,9 +235,11 @@ function checkReminders() {
       !task.dueAlertPlayed
     ) {
 
+      console.log("🚨 Due alert triggered");
+
       showNotification(
         "🚨 Task Due",
-        `"${task.text}" is due NOW!`
+        `"${task.text}" is due NOW`
       );
 
       playBeep();
@@ -220,15 +247,11 @@ function checkReminders() {
       task.dueAlertPlayed = true;
       saveTasks();
     }
+
   });
 }
 
-//
-// ⏱️ RUN EVERY SECOND
-//
-setInterval(checkReminders, 1000);
-
-//
-// 🚀 INITIAL RENDER
-//
-renderTasks();
+window.addEventListener("DOMContentLoaded", () => {
+  renderTasks();
+  setInterval(checkReminders, 1000);
+});
