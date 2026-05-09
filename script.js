@@ -134,6 +134,6 @@ function checkReminders() {
   });
 }
 
-setInterval(checkReminders, 30000);
+setInterval(checkReminders, 1000);
 
 renderTasks();
