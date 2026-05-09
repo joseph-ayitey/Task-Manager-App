@@ -5,42 +5,28 @@ let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
 let currentFilter = "all";
 
 //
-// 🔔 NOTIFICATION STATE
+// 🆔 FIX OLD DATA (IMPORTANT)
+// convert old tasks into proper timestamps
 //
-let notificationEnabled = false;
+tasks = tasks.map(t => {
+  const timestamp =
+    t.timestamp ??
+    new Date(`${t.date}T${t.time}:00`).getTime();
 
-if ("Notification" in window) {
-  if (Notification.permission === "granted") {
-    notificationEnabled = true;
-  } else if (Notification.permission !== "denied") {
-    Notification.requestPermission().then(permission => {
-      notificationEnabled = permission === "granted";
-    });
-  }
-}
-
-//
-// 🆔 ENSURE ALL TASKS HAVE IDs (important fix for old data)
-//
-tasks.forEach(t => {
-  if (!t.id) t.id = crypto.randomUUID();
+  return {
+    ...t,
+    id: t.id || crypto.randomUUID(),
+    timestamp,
+    notified: t.notified ?? false,
+    dueAlertPlayed: t.dueAlertPlayed ?? false
+  };
 });
 
+//
+// 💾 SAVE
+//
 function saveTasks() {
   localStorage.setItem("tasks", JSON.stringify(tasks));
-}
-
-//
-// ⏱️ DATE/TIME PARSER
-//
-function getTaskDateTime(task) {
-  if (!task.date || !task.time) return null;
-
-  const dateTime = new Date(`${task.date}T${task.time}:00`);
-
-  if (isNaN(dateTime.getTime())) return null;
-
-  return dateTime;
 }
 
 //
@@ -74,17 +60,14 @@ function renderTasks() {
       (task.date ? ` - 📅 ${task.date}` : "") +
       (task.time ? ` ⏰ ${task.time}` : "");
 
-    if (task.completed) {
-      span.classList.add("completed");
-    }
+    if (task.completed) span.classList.add("completed");
 
     //
-    // ✔ TOGGLE COMPLETE (UPDATED: auto move handling is natural via filter)
+    // ✔ TOGGLE COMPLETE
     //
     span.onclick = () => {
       task.completed = !task.completed;
 
-      // reset reminders if reopened
       if (!task.completed) {
         task.notified = false;
         task.dueAlertPlayed = false;
@@ -95,7 +78,7 @@ function renderTasks() {
     };
 
     //
-    // ❌ DELETE TASK (FIXED)
+    // ❌ DELETE
     //
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "X";
@@ -113,7 +96,8 @@ function renderTasks() {
 }
 
 //
-// ➕ ADD TASK
+// ➕ ADD TASK (FIXED)
+// IMPORTANT: create timestamp here
 //
 function addTask() {
   const text = taskInput.value.trim();
@@ -122,11 +106,14 @@ function addTask() {
 
   if (!text || !date || !time) return;
 
+  const timestamp = new Date(`${date}T${time}:00`).getTime();
+
   tasks.push({
     id: crypto.randomUUID(),
     text,
     date,
     time,
+    timestamp, // ✅ KEY FIX
     completed: false,
     notified: false,
     dueAlertPlayed: false
@@ -139,7 +126,7 @@ function addTask() {
 }
 
 //
-// 🔊 BEEP SOUND (FIXED AUDIO CONTEXT)
+// 🔊 SOUND
 //
 let audioCtx;
 
@@ -161,9 +148,8 @@ function playBeep() {
     osc.start();
 
     setTimeout(() => osc.stop(), 300);
-
   } catch (err) {
-    console.log("Audio error:", err);
+    console.log(err);
   }
 }
 
@@ -174,33 +160,24 @@ function showNotification(title, message) {
   if (!("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
 
-  try {
-    new Notification(title, { body: message });
-  } catch (err) {
-    console.error(err);
-  }
+  new Notification(title, {
+    body: message
+  });
 }
 
 //
-// 🚀 CHECK REMINDERS (clean + safe version)
+// 🚨 MAIN REMINDER LOGIC (FIXED)
 //
 function checkReminders() {
   const now = Date.now();
 
-  tasks.forEach((task) => {
-    const diff = task.time - now;
+  tasks.forEach(task => {
+    if (!task.timestamp || task.completed) return;
+
+    const diff = task.timestamp - now;
 
     //
-    // 🔄 Reset flags if task time was changed
-    //
-    if (task.lastCheckedTime !== task.time) {
-      task.notified = false;
-      task.dueAlertPlayed = false;
-      task.lastCheckedTime = task.time;
-    }
-
-    //
-    // ⏳ UPCOMING (1 hour → 1 minute before)
+    // ⏳ UPCOMING (1 hour before)
     //
     if (
       diff > 0 &&
@@ -209,7 +186,7 @@ function checkReminders() {
     ) {
       showNotification(
         "⏰ Upcoming Task",
-        `${task.text} is coming in ${Math.ceil(diff / 60000)} min`
+        `${task.text} in ${Math.ceil(diff / 60000)} min`
       );
 
       playBeep();
@@ -218,12 +195,12 @@ function checkReminders() {
     }
 
     //
-    // 🚨 DUE NOW (no fragile time window)
+    // 🚨 DUE NOW
     //
     if (diff <= 0 && !task.dueAlertPlayed) {
       showNotification(
         "🚨 Task Due",
-        `${task.text} is due now`
+        task.text
       );
 
       playBeep();
@@ -238,7 +215,5 @@ function checkReminders() {
 //
 window.addEventListener("DOMContentLoaded", () => {
   renderTasks();
-
-  // still fine for UI updates, but logic is now safe
   setInterval(checkReminders, 1000);
 });
