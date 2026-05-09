@@ -103,16 +103,27 @@ function checkReminders() {
   tasks.forEach(task => {
     if (!task.completed && !task.notified) {
       const taskDateTime = new Date(`${task.date}T${task.time}`);
-      const diff = taskDateTime - now;
+      const diff = dueTime - now;
 
       // 1 hour before
       if (diff > 0 && diff <= 3600000) {
-        alert(`Reminder: "${task.text}" is due within 1 hour!`);
+        alert(`Reminder: "${task.text}" is due in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}!`);
 
         playBeep(); // 🔊 SOUND ADDED HERE
 
         task.notified = true;
         saveTasks();
+      }
+
+      //Exact Due Time 
+      if (diff <= 0 && !task.dueAlertPlayed) {
+
+          alert(`"${task.text}" is due NOW!`);
+
+    playBeep();
+
+    task.dueAlertPlayed = true;
+    saveTasks();
       }
     }
   });
